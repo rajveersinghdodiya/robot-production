@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -40,6 +41,23 @@ app.use('/api/blogs', blogsRouteModule.publicRouter);
 app.use('/api/admin/blogs', blogsRouteModule.adminRouter);
 app.use('/api/contact', contactRouter);
 
+// Serve React frontend (Vite) when built into `front/dist`
+const clientDistPath = path.join(__dirname, 'front', 'dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+
+  // Fallback route for client-side routing (React Router)
+  app.get('*', (req, res, next) => {
+    // Let API routes respond normally
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) return next();
+
+    const indexHtml = path.join(clientDistPath, 'index.html');
+    res.sendFile(indexHtml, (err) => {
+      if (err) next(err);
+    });
+  });
+}
+
 // Serve product uploads at the same path used by the Flask backend: /api/uploads/products/:filename
 app.get('/api/uploads/products/:filename', (req, res) => {
   const filename = req.params.filename;
@@ -62,7 +80,13 @@ app.get('/api/uploads/blogs/:filename', (req, res) => {
   });
 });
 
+// 404 handler for API routes (and other non-client routes)
 app.use((req, res) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  // If client build isn't present, return JSON for root path
   res.status(404).json({ error: 'Not found' });
 });
 
