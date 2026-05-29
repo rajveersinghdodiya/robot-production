@@ -42,20 +42,25 @@ app.use('/api/admin/blogs', blogsRouteModule.adminRouter);
 app.use('/api/contact', contactRouter);
 
 // Serve React frontend (Vite) when built into `front/dist`
-const clientDistPath = path.join(__dirname, 'front', 'dist');
+const clientDistPath = path.join(__dirname, 'dist', 'client');
 if (fs.existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath));
 
   // Fallback route for client-side routing (React Router)
-  app.get('*', (req, res, next) => {
-    // Let API routes respond normally
-    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) return next();
+ app.use((req, res, next) => {
+  if (
+    req.path.startsWith('/api') ||
+    req.path.startsWith('/uploads')
+  ) {
+    return next();
+  }
 
-    const indexHtml = path.join(clientDistPath, 'index.html');
-    res.sendFile(indexHtml, (err) => {
-      if (err) next(err);
-    });
+  const indexHtml = path.join(clientDistPath, 'index.html');
+
+  res.sendFile(indexHtml, (err) => {
+    if (err) next(err);
   });
+});
 }
 
 // Serve product uploads at the same path used by the Flask backend: /api/uploads/products/:filename
